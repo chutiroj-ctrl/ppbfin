@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard - Bird</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 28px;
+            color: #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-status {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .status-dot.active { background: #0ca30c; }
+        .status-dot.warning { background: #fab219; }
+        .status-dot.danger { background: #e34948; }
+
+        .alerts-banner {
+            background: #fcebeb;
+            border: 1px solid #f4a5a5;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .alerts-banner.show {
+            display: block;
+        }
+
+        .alert-item {
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #e34948;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            color: #e34948;
+            margin-bottom: 4px;
+        }
+
+        .alert-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .alert-action {
+            background: #e34948;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .alert-action:hover {
+            background: #c42c2c;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 4px solid #2a78d6;
+        }
+
+        .metric-card.danger { border-left-color: #e34948; }
+        .metric-card.warning { border-left-color: #fab219; }
+        .metric-card.success { border-left-color: #0ca30c; }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 6px;
+        }
+
+        .metric-subtitle {
+            font-size: 13px;
+            color: #999;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section h2 {
+            font-size: 18px;
+            color: #1a1a1a;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+
+        .account-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .account-item {
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #2a78d6;
+        }
+
+        .account-item.overdue {
+            background: #fcebeb;
+            border-left-color: #e34948;
+        }
+
+        .account-item.atrisk {
+            background: #faeeda;
+            border-left-color: #fab219;
+        }
+
+        .account-info {
+            flex: 1;
+        }
+
+        .account-name {
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .account-detail {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .account-amount {
+            text-align: right;
+        }
+
+        .account-balance {
+            font-weight: 700;
+            font-size: 16px;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .account-rate {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .consolidation-phase {
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #2a78d6;
+        }
+
+        .consolidation-phase.active {
+            border-left-color: #fab219;
+            background: #faeeda;
+        }
+
+        .consolidation-phase.completed {
+            border-left-color: #0ca30c;
+            background: #eaf3de;
+        }
+
+        .phase-title {
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .phase-detail {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .phase-savings {
+            font-size: 12px;
+            color: #0ca30c;
+            font-weight: 600;
+        }
+
+        .optimization-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .optimization-item {
+            padding: 12px;
+            background: #e6f1fb;
+            border-radius: 8px;
+            border-left: 3px solid #2a78d6;
+        }
+
+        .optimization-title {
+            font-weight: 600;
+            color: #185fa5;
+            margin-bottom: 4px;
+        }
+
+        .optimization-desc {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .optimization-impact {
+            font-size: 12px;
+            color: #0ca30c;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab-button {
+            padding: 12px 16px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            color: #2a78d6;
+            border-bottom-color: #2a78d6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background: #f5f5f5;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #1a1a1a;
+            border-bottom: 1px solid #ddd;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.paid {
+            background: #eaf3de;
+            color: #0ca30c;
+        }
+
+        .status-badge.unpaid {
+            background: #fcebeb;
+            color: #e34948;
+        }
+
+        .status-badge.pending {
+            background: #faeeda;
+            color: #ba7517;
+        }
+
+        .footer {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .refresh-btn {
+            background: #2a78d6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .refresh-btn:hover {
+            background: #1e5aa8;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ddd;
+            border-top-color: #2a78d6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Financial Dashboard</h1>
+            <div class="header-status">
+                <div class="status-item">
+                    <div class="status-dot active"></div>
+                    <span>System Active</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="sync-status"></div>
+                    <span id="last-sync">Last sync: never</span>
+                </div>
+                <button class="refresh-btn" onclick="refreshData()">
+                    <span id="refresh-icon">🔄</span> Refresh
+                </button>
+            </div>
+        </header>
+
+        <div class="alerts-banner" id="alerts-banner">
+            <h3 style="color: #e34948; margin-bottom: 12px;">⚠️ Active Alerts</h3>
+            <div id="alerts-list"></div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Monthly Obligations</div>
+                <div class="metric-value">฿<span id="monthly-total">424,213</span></div>
+                <div class="metric-subtitle">September 2026 planned total</div>
+            </div>
+            <div class="metric-card success">
+                <div class="metric-label">Payment Progress</div>
+                <div class="metric-value"><span id="payment-progress">89</span>%</div>
+                <div class="metric-subtitle"><span id="payment-count">27 of 30</span> accounts paid</div>
+            </div>
+            <div class="metric-card danger">
+                <div class="metric-label">At Risk / Overdue</div>
+                <div class="metric-value"><span id="at-risk-count">3</span></div>
+                <div class="metric-subtitle">Requires immediate action</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Consolidation Savings</div>
+                <div class="metric-value">฿<span id="potential-savings">10-15k</span></div>
+                <div class="metric-subtitle">Annual savings opportunity</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="section">
+                <h2>📊 Payment Status Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="paymentChart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>💳 Account Balance Breakdown</h2>
+                <div class="chart-container">
+                    <canvas id="balanceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>⚠️ Overdue & At-Risk Accounts</h2>
+                <div class="account-list" id="at-risk-list">
+                    <div class="account-item overdue">
+                        <div class="account-info">
+                            <div class="account-name">ผ่อนรถ MG HSPHEV QR // TTB</div>
+                            <div class="account-detail">Due TODAY (10 Sep) • NOT PAID</div>
+                        </div>
+                        <div class="account-amount">
+                            <div class="account-balance">฿13,425</div>
+                            <div class="account-rate">Loan</div>
+                        </div>
+                    </div>
+                    <div class="account-item atrisk">
+                        <div class="account-info">
+                            <div class="account-name">UOB Creditcard 16%</div>
+                            <div class="account-detail">Due Sep 15 (5 days) • NOT PAID</div>
+                        </div>
+                        <div class="account-amount">
+                            <div class="account-balance">฿22,097</div>
+                            <div class="account-rate">16% APR</div>
+                        </div>
+                    </div>
+                    <div class="account-item atrisk">
+                        <div class="account-info">
+                            <div class="account-name">UOB Grab 16%</div>
+                            <div class="account-detail">Due Sep 15 (5 days) • NOT PAID</div>
+                        </div>
+                        <div class="account-amount">
+                            <div class="account-balance">฿96,770</div>
+                            <div class="account-rate">16% APR</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🎯 Consolidation Roadmap</h2>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="consolidation-phase active">
+                        <div class="phase-title">Phase 1: UOB Consolidation (Sep-Oct)</div>
+                        <div class="phase-detail">4 cards → 2 cards | Balance: ฿592,235</div>
+                        <div class="phase-savings">💰 Savings: 5-8k฿/year | Timeline: 2-3 weeks</div>
+                    </div>
+                    <div class="consolidation-phase">
+                        <div class="phase-title">Phase 2: Krungsri Assessment (Nov)</div>
+                        <div class="phase-detail">4 cards evaluated | Balance: ฿162,430</div>
+                        <div class="phase-savings">💰 Savings: 3-4k฿/year | Timeline: 3-4 weeks</div>
+                    </div>
+                    <div class="consolidation-phase">
+                        <div class="phase-title">Phase 3: KTC Cleanup (Dec)</div>
+                        <div class="phase-detail">3 cards consolidated | Balance: ฿83,665</div>
+                        <div class="phase-savings">💰 Savings: 2-3k฿/year | Timeline: 2-3 weeks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" style="margin-bottom: 2rem;">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('analysis')">Analysis & Optimization</button>
+                <button class="tab-button" onclick="switchTab('accounts')">All Accounts</button>
+                <button class="tab-button" onclick="switchTab('schedule')">Payment Schedule</button>
+            </div>
+
+            <div id="analysis" class="tab-content active">
+                <h3 style="margin-bottom: 1rem; color: #1a1a1a;">Key Findings</h3>
+                <div class="optimization-list">
+                    <div class="optimization-item">
+                        <div class="optimization-title">🚨 UOB Account Cluster - HIGH PRIORITY</div>
+                        <div class="optimization-desc">4 UOB cards with total balance of ฿592,235 (68% of tracked debt). UOB Grab alone carries ฿460,415 (78% of UOB total).</div>
+                        <div class="optimization-impact">Action: Consolidate to 2 cards, Expected savings: 5-8k฿/year</div>
+                    </div>
+                    <div class="optimization-item">
+                        <div class="optimization-title">⚡ High Interest Alert</div>
+                        <div class="optimization-desc">2 accounts charging 25% interest: UOB CashPlus (฿18,775) and Cash Plus (฿1,595). These should be prioritized for paydown or transfer.</div>
+                        <div class="optimization-impact">Action: Increase payments on 25% accounts by 20-30%</div>
+                    </div>
+                    <div class="optimization-item">
+                        <div class="optimization-title">💡 Payment Pattern Optimization</div>
+                        <div class="optimization-desc">Current strategy uses minimum payments on most accounts. High-interest cards would benefit from increased payment allocation.</div>
+                        <div class="optimization-impact">Action: Shift 10-15% of available payment capacity to 16%+ APR cards</div>
+                    </div>
+                    <div class="optimization-item">
+                        <div class="optimization-title">📊 Account Health</div>
+                        <div class="optimization-desc">September progress: 89% of accounts paid, 3 accounts requiring immediate action (1 overdue, 2 at-risk).</div>
+                        <div class="optimization-impact">Status: Manageable but needs attention to prevent late fees</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="accounts" class="tab-content">
+                <h3 style="margin-bottom: 1rem; color: #1a1a1a;">Account Summary (September 2026)</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Current Balance</th>
+                                <th>Interest Rate</th>
+                                <th>Payment Due</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>ผ่อนรถ MG HSPHEV QR // TTB</td>
+                                <td>฿13,425</td>
+                                <td>Fixed</td>
+                                <td>10 Sep</td>
+                                <td><span class="status-badge unpaid">Not Paid</span></td>
+                                <td>⚠️ OVERDUE</td>
+                            </tr>
+                            <tr>
+                                <td>UOB Creditcard 16%</td>
+                                <td>฿78,685</td>
+                                <td>16%</td>
+                                <td>15 Sep</td>
+                                <td><span class="status-badge unpaid">Not Paid</span></td>
+                                <td>At-risk (5 days)</td>
+                            </tr>
+                            <tr>
+                                <td>UOB Grab 16%</td>
+                                <td>฿460,415</td>
+                                <td>16%</td>
+                                <td>15 Sep</td>
+                                <td><span class="status-badge unpaid">Not Paid</span></td>
+                                <td>Highest balance</td>
+                            </tr>
+                            <tr>
+                                <td>UOB CashPlus 25%</td>
+                                <td>฿18,775</td>
+                                <td>25%</td>
+                                <td>20 Sep</td>
+                                <td><span class="status-badge pending">Pending</span></td>
+                                <td>High interest</td>
+                            </tr>
+                            <tr>
+                                <td>Cash Plus (UOB) 25%</td>
+                                <td>฿1,595</td>
+                                <td>25%</td>
+                                <td>20 Sep</td>
+                                <td><span class="status-badge pending">Pending</span></td>
+                                <td>High interest</td>
+                            </tr>
+                            <tr>
+                                <td>KTC Creditcard</td>
+                                <td>฿45,230</td>
+                                <td>18%</td>
+                                <td>18 Sep</td>
+                                <td><span class="status-badge paid">Paid</span></td>
+                                <td>On schedule</td>
+                            </tr>
+                            <tr>
+                                <td>Krungsri Homepro</td>
+                                <td>฿68,450</td>
+                                <td>12%</td>
+                                <td>17 Sep</td>
+                                <td><span class="status-badge paid">Paid</span></td>
+                                <td>On schedule</td>
+                            </tr>
+                            <tr>
+                                <td>Exclusive Cash (Krungsri)</td>
+                                <td>฿0</td>
+                                <td>18%</td>
+                                <td>N/A</td>
+                                <td><span class="status-badge paid">Paid</span></td>
+                                <td>No balance</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="schedule" class="tab-content">
+                <h3 style="margin-bottom: 1rem; color: #1a1a1a;">September Payment Schedule</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="stat-row" style="padding: 12px; background: #fcebeb; border-radius: 8px;">
+                        <div class="stat-label" style="font-weight: 600; color: #e34948;">TODAY (Sep 10)</div>
+                        <div class="stat-value">1 payment • ฿13,425</div>
+                    </div>
+                    <div class="stat-row" style="padding: 12px; background: #faeeda; border-radius: 8px;">
+                        <div class="stat-label" style="font-weight: 600; color: #ba7517;">Sep 15 (5 days)</div>
+                        <div class="stat-value">2 payments • ฿118,867</div>
+                    </div>
+                    <div class="stat-row" style="padding: 12px; background: #f0f8ff; border-radius: 8px;">
+                        <div class="stat-label" style="font-weight: 600; color: #185fa5;">Sep 17-20</div>
+                        <div class="stat-value">4 payments • ฿214,345</div>
+                    </div>
+                    <div class="stat-row" style="padding: 12px; background: #eaf3de; border-radius: 8px;">
+                        <div class="stat-label" style="font-weight: 600; color: #0ca30c;">Sep 21-30</div>
+                        <div class="stat-value">8 payments • ฿77,576</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Financial Dashboard • Real-time data sync • Last updated: <span id="last-update">Never</span></p>
+            <p style="margin-top: 8px; color: #999;">All amounts in Thai Baht (฿) • Data pulled from Google Sheet & Email Statements</p>
+        </div>
+    </div>
+
+    <script>
+        let chartPayment = null;
+        let chartBalance = null;
+
+        function initCharts() {
+            const ctxPayment = document.getElementById('paymentChart').getContext('2d');
+            if (chartPayment) chartPayment.destroy();
+            chartPayment = new Chart(ctxPayment, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Paid', 'Not Paid'],
+                    datasets: [{
+                        data: [27, 3],
+                        backgroundColor: ['#0ca30c', '#e34948'],
+                        borderColor: ['#ffffff', '#ffffff'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 13, weight: '600' },
+                                color: '#1a1a1a'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const ctxBalance = document.getElementById('balanceChart').getContext('2d');
+            if (chartBalance) chartBalance.destroy();
+            chartBalance = new Chart(ctxBalance, {
+                type: 'bar',
+                data: {
+                    labels: ['UOB Grab', 'Krungsri', 'KTC', 'Others'],
+                    datasets: [{
+                        label: 'Balance (฿)',
+                        data: [460415, 162430, 83665, 154218],
+                        backgroundColor: ['#2a78d6', '#eb6834', '#1baf7a', '#888780'],
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '฿' + (value / 1000).toFixed(0) + 'k';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function updateAlerts() {
+            const alerts = [
+                { title: 'ผ่อนรถ MG HSPHEV Payment Due TODAY', desc: '฿13,425 - Make payment now', severity: 'danger' },
+                { title: 'UOB Cards Payment Due in 5 Days', desc: '฿118,867 (2 cards) - Due Sep 15', severity: 'warning' }
+            ];
+
+            const alertsHtml = alerts.map(alert => `
+                <div class="alert-item">
+                    <div>
+                        <div class="alert-title">${alert.title}</div>
+                        <div class="alert-time">${alert.desc}</div>
+                    </div>
+                    <button class="alert-action">Pay Now</button>
+                </div>
+            `).join('');
+
+            const alertsBanner = document.getElementById('alerts-banner');
+            const alertsList = document.getElementById('alerts-list');
+            alertsList.innerHTML = alertsHtml;
+            alertsBanner.classList.add('show');
+        }
+
+        function updateLastSync() {
+            const now = new Date();
+            document.getElementById('last-sync').textContent = `Last sync: ${now.toLocaleTimeString()}`;
+            document.getElementById('last-update').textContent = now.toLocaleString();
+            document.getElementById('sync-status').className = 'status-dot active';
+        }
+
+        function refreshData() {
+            const icon = document.getElementById('refresh-icon');
+            icon.innerHTML = '<span class="loading"></span>';
+            
+            setTimeout(() => {
+                updateLastSync();
+                icon.innerHTML = '🔄';
+                console.log('Data refreshed');
+            }, 1000);
+        }
+
+        window.addEventListener('load', function() {
+            initCharts();
+            updateAlerts();
+            updateLastSync();
+            
+            setInterval(() => {
+                document.getElementById('sync-status').className = 'status-dot active';
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
